@@ -4,3 +4,4 @@ src/main/resources/Solidity/
 src/main/resources/out/
 src/main/resources/keystore/
 src/main/java/contracts/AccessControl.java
+.DS_Store
