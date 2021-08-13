@@ -98,7 +98,7 @@ public class Main {
 //      load AccessControl contract
         AccessControl accessControl = loadAccessControl(ACCESSCONTROL_ADDRESS, web3j, credentials, provider);
 //        createAccount(accessControl);
-//        grantAccount(web3j, accessControl, "125", "0x2429891e261f9544ffDbE7858B03E92DaF75e5B6");
+        grantAccount(web3j, accessControl, accountID, user1EsPublicKeyArray, RECIPIENT);
 //        storeClientDataHash(accessControl, accountID, decodeUsingBigInteger(clientDataHash));
         System.out.println("byte:" + Arrays.toString(decodeHexString("7898e6377059c3f758a0380244f9b45b8ea40777e2eb49d6440f16d934de863c")));
 
@@ -147,7 +147,10 @@ public class Main {
                 ACCESSCONTROL_ADDRESS,
                 data);
         String transactionHash = web3j.ethSendTransaction(transaction).send().getTransactionHash();
-        System.out.println(transactionHash);
+        Optional<TransactionReceipt> transactionReceipt = web3j.ethGetTransactionReceipt(transactionHash)
+                .send()
+                .getTransactionReceipt();
+        System.out.println(transactionReceipt);
     }
 
 
@@ -168,7 +171,10 @@ public class Main {
                 ACCESSCONTROL_ADDRESS,
                 data);
         String transactionHash = web3j.ethSendTransaction(transaction).send().getTransactionHash();
-        System.out.println(transactionHash);
+        Optional<TransactionReceipt> transactionReceipt = web3j.ethGetTransactionReceipt(transactionHash)
+                                                               .send()
+                                                               .getTransactionReceipt();
+        System.out.println(transactionReceipt);
     }
 
     /*contract functions*/
