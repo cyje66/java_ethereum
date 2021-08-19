@@ -5,21 +5,23 @@ import java.math.BigInteger;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.NoSuchAlgorithmException;
 import java.security.NoSuchProviderException;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
+import java.util.*;
 
 import contracts.AccessControl;
 import contracts.Storage;
 import org.web3j.abi.FunctionEncoder;
 import org.web3j.abi.TypeReference;
+import org.web3j.abi.datatypes.Address;
 import org.web3j.abi.datatypes.Function;
-import org.web3j.abi.datatypes.Type;
+import org.web3j.abi.datatypes.Utf8String;
+import org.web3j.abi.datatypes.generated.StaticArray2;
+import org.web3j.abi.datatypes.generated.Uint256;
+import org.web3j.abi.Utils;
 import org.web3j.crypto.*;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.admin.Admin;
 import org.web3j.protocol.core.DefaultBlockParameterName;
+import org.web3j.protocol.core.Response;
 import org.web3j.protocol.core.methods.request.EthFilter;
 import org.web3j.protocol.core.methods.request.Transaction;
 import org.web3j.protocol.core.methods.response.*;
@@ -40,8 +42,11 @@ public class Main {
 //    GAS_PRICE = 20GWei
     public final static BigInteger GAS_PRICE = Convert.toWei("20", Convert.Unit.GWEI).toBigInteger();
     public final static String CONTRACT_ADDRESS = "0xa376f79dce37ed78e8f85540c1254ed2f846aaae";
+//    deploy on ganache
     public final static String ACCESSCONTROL_ADDRESS = "0x70ba62137e52a6af26b773facb1d3843e32c265b";
-    public final static String accountID = "125";
+//    deploy on remix:
+//    public final static String ACCESSCONTROL_ADDRESS = "0x41959594C5f35a2F591814bC073b901A4afcc832";
+    public final static String accountID = "126";
     public final static String admin = "0x2429891e261f9544ffDbE7858B03E92DaF75e5B6";
     public final static String RECIPIENT = "0x326d086558c644E759B8c0eB75dfF4Cc93Ae9cCB";
     public final static List<BigInteger> user1EsPublicKeyArray =
@@ -50,6 +55,8 @@ public class Main {
                     new BigInteger("023e47fb62178ac37fa6ee7c554357727ca22dd4a953f3522624c623ba6cc911", 16)
             );
     public final static String clientDataHash = "7898e6377059c3f758a0380244f9b45b8ea40777e2eb49d6440f16d934de863c";
+    private final static String signedTx = "0xf90166018083895440942c44c7e0d873b138d7e247cd2c146e4f3b73848a80b90104135c695200000000000000000000000000000000000000000000000000000000000002057898e6377059c3f758a0380244f9b45b8ea40777e2eb49d6440f16d934de863c00000000000000000000000000000000000000000000000000000000000000a0cba99b8205cc3aa19a44a2080ec40872b19eb983eb0437d01d7d530fed435751499764db9edb00c6f9165feef83bd6c1685c3035321c580fcbef24b45379cd270000000000000000000000000000000000000000000000000000000000000025685f6a9a4327ab66dfb74b6f22e2fc92f6d11e04c2a5a7930502ff45602e687c05000000010000000000000000000000000000000000000000000000000000001ba0323dd545c7b8e1dc6dfc553086bbc7b84d78c0c3d40f64b2e68f88f04216afd9a0291016e66b3b5c8ff4fa2ae28c278552289fa101a7475f512478b43948998ddc";
+    private final static String authData = "499764db9edb00c6f9165feef83bd6c1685c3035321c580fcbef24b45379cd27";
 
     public static void main(String[] args) {
         // used in deployContract()
@@ -67,7 +74,7 @@ public class Main {
         Credentials credentials = Credentials.create(PRIVATE_KEY);
         Credentials credentials1 = WalletUtils.loadCredentials("123",
                 "src/main/resources/keystore/UTC--2021-06-30T10-19-50.856000000Z--df5929ef01c04967fa505e0fbe66bf989f02ff88.json");
-        Credentials credentials2 = Credentials.create("8049d044ef9fd85fadf5a1911a9a422272b9ecd911a0a2b56435f87b237a592b");
+        Credentials credentials2 = Credentials.create("6a147b449c90eee8f547561b9ef57e28790bc71cf7900c9d540170cc971e4dc7");
         TransactionManager transactionManager = new RawTransactionManager(
                 web3j,
                 credentials
@@ -92,19 +99,21 @@ public class Main {
 //        TransactionReceipt transactionReceipt = storage.store(BigInteger.valueOf(100))
 //                                                        .send();
 //        System.out.println(transactionReceipt);
-        BigInteger num = storage.retrieve().send();
-        System.out.println("num: " + num);
+//        BigInteger num = storage.retrieve().send();
+//        System.out.println("num: " + num);
 
 //      load AccessControl contract
         AccessControl accessControl = loadAccessControl(ACCESSCONTROL_ADDRESS, web3j, credentials, provider);
 //        createAccount(accessControl);
-        grantAccount(web3j, accessControl, accountID, user1EsPublicKeyArray, RECIPIENT);
+//        grantAccount(web3j, accessControl, accountID, user1EsPublicKeyArray, RECIPIENT);
+//        terminate(accessControl, accountID);
 //        storeClientDataHash(accessControl, accountID, decodeUsingBigInteger(clientDataHash));
         System.out.println("byte:" + Arrays.toString(decodeHexString("7898e6377059c3f758a0380244f9b45b8ea40777e2eb49d6440f16d934de863c")));
 
         BigInteger nonce = web3j.ethGetTransactionCount(admin, DefaultBlockParameterName.LATEST).send().getTransactionCount();
         System.out.println(nonce);
 
+        sendSignTx(web3j, credentials2, accessControl);
 
 //        storeEthAddress();
 //        storeEC256PubKey(web3j, accessControl, accountID, user1EsPublicKeyArray);
@@ -120,6 +129,48 @@ public class Main {
             System.out.println(log._name);
         });
 
+    }
+
+    private void sendSignTx(Web3j web3j, Credentials credentials2, AccessControl accessControl) throws IOException, InterruptedException, java.util.concurrent.ExecutionException {
+        // Create the Transaction
+        RawTransaction rawTransaction = RawTransaction.createTransaction(
+                getNonce(web3j, credentials2.getAddress()),
+                GAS_PRICE,
+                GAS_LIMIT,
+                ACCESSCONTROL_ADDRESS,
+                accessControl.validateSig(accountID,
+                        decodeHexString(clientDataHash),
+                        decodeHexString(authData),
+                        user1EsPublicKeyArray).encodeFunctionCall()
+        );
+        // Sign the Transaction
+        byte[] signedMessage = TransactionEncoder.signMessage(rawTransaction, credentials2);
+
+        String hexValue = Numeric.toHexString(signedMessage);
+        System.out.println("hexValue: " + hexValue);
+
+        EthSendTransaction ethSendTransaction = web3j.ethSendRawTransaction(hexValue).sendAsync().get();
+        String txHash = ethSendTransaction.getTransactionHash();
+//        Response.Error error = ethSendTransaction.getError();
+        System.out.println(txHash);
+        TransactionReceipt receipt = web3j.ethGetTransactionReceipt(txHash)
+                                                    .send()
+                                                    .getTransactionReceipt()
+                                                    .get();
+        List<Log> logs = receipt.getLogs();
+        int length = logs.get(0).getData().length();
+        String data = logs.get(0).getData();
+        int status = Integer.parseInt(data.substring(length -1), 10);
+        String statusMap[] =
+                {
+                    "Authentication success",
+                    "Client data authentication failed",
+                    "User authentication failed",
+                    "Signature format failed",
+                    "relying party authentication failed"
+                };
+        System.out.println(status);
+        System.out.println(statusMap[status]);
     }
 
     public byte[] decodeHexString(String hexString) {
@@ -248,6 +299,7 @@ public class Main {
 //        sign rawTx
         byte[] signedMessage = TransactionEncoder.signMessage(rawTx, credentials);
         String hexValue = Numeric.toHexString(signedMessage);
+        System.out.println("hexValue: " + hexValue);
         String txHash = web3j.ethSendRawTransaction(hexValue).send().getTransactionHash();
         System.out.println("raw tx: " + txHash);
     }
